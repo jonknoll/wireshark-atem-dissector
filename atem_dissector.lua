@@ -70,6 +70,7 @@ local pf_unknown1        = ProtoField.new   ("Unknown", "atem.unknown1", ftypes.
 local pf_cmd_length     = ProtoField.new   ("Command length", "atem.cmd.length", ftypes.UINT16, nil, base.DEC)
 local pf_cmd_unknown    = ProtoField.new   ("Unknown", "atem.cmd.unknown", ftypes.UINT16, nil, base.HEX)
 local pf_cmd_name       = ProtoField.new   ("Command name", "atem.cmd.name", ftypes.STRING)
+local pf_init_name      = ProtoField.new   ("Init", "atem.init", ftypes.BYTES)
 
 -- within the flags field, we want to parse/show the bits separately
 -- note the "base" argument becomes the size of the bitmask'ed field when ftypes.BOOLEAN is used
@@ -85,7 +86,7 @@ local pf_fields = {}
 local VALS = {}
 pf_fields["pf_cmd__ver_major"]  = ProtoField.new  ("Major", "atem.cmd._ver.major", ftypes.UINT16, nil, base.DEC)
 pf_fields["pf_cmd__ver_minor"]  = ProtoField.new  ("Minor", "atem.cmd._ver.minor", ftypes.UINT16, nil, base.DEC)
-pf_fields["pf_cmd__pin_name0"]  = ProtoField.new  ("Name", "atem.cmd._pin.name0", ftypes.STRING, nil, base.NONE)
+pf_fields["pf_cmd__pin_name"]  = ProtoField.new  ("Name", "atem.cmd._pin.name", ftypes.STRING, nil, base.NONE)
 pf_fields["pf_cmd_warn_text"]   = ProtoField.new  ("Text", "atem.cmd.warn.text", ftypes.STRING, nil, base.NONE)
 pf_fields["pf_cmd__top_mes"]    = ProtoField.new  ("MEs", "atem.cmd._top.mes", ftypes.UINT8, nil, base.DEC)
 pf_fields["pf_cmd__top_sources0"]   = ProtoField.new  ("Sources", "atem.cmd._top.sources0", ftypes.UINT8, nil, base.DEC)
@@ -940,9 +941,10 @@ cmd_labels["FTDE"] = "Data Transfer Error"
 atem_proto.fields = { 
   pf_packet_length, pf_flags, pf_session_id, pf_packet_id, pf_client_pkt_id,  pf_ack_pkt_id, pf_unknown1,
   pf_flag_ack_req, pf_flag_init, pf_flag_retransmission, pf_flag_retransmit_req, pf_flag_ack,
-  pf_cmd_length, pf_cmd_unknown, pf_cmd_name,
+  pf_cmd_length, pf_cmd_unknown, pf_cmd_name, pf_init_name,
   pf_fields["pf_cmd__ver_major"],pf_fields["pf_cmd__ver_minor"],
-  pf_fields["pf_cmd__pin_name0"],pf_fields["pf_cmd_warn_text"],
+  pf_fields["pf_cmd__pin_name"],
+  pf_fields["pf_cmd_warn_text"],
   pf_fields["pf_cmd__top_mes"],pf_fields["pf_cmd__top_sources0"],pf_fields["pf_cmd__top_colorgenerators"],pf_fields["pf_cmd__top_auxbusses"],pf_fields["pf_cmd__top_downstreamkeyes"],pf_fields["pf_cmd__top_stingers"],pf_fields["pf_cmd__top_dves"],pf_fields["pf_cmd__top_supersources"],pf_fields["pf_field_unknown0"],pf_fields["pf_cmd__top_hassdoutput"],pf_fields["pf_field_unknown1"],pf_fields["pf_field_me"],
   pf_fields["pf_cmd__mec_keyersonme"],
   pf_fields["pf_cmd__mpl_stillbanks"],pf_fields["pf_cmd__mpl_clipbanks"],
@@ -1155,12 +1157,20 @@ function atem_proto.dissector(tvbuf,pktinfo,root)
 	local pos = ATEM_HDR_LEN
 	local cmd_count = 0
 	local cmd_name = ""
+    local pktlen_remaining = pktlen - pos
+    local commands_tree = nil
 	
-	if (pktlen > 12 and tvbuf:range(0,1):bitfield(3, 1) == 0) then
-		local commands_tree = tree:add("Commands")
-		packet_type = "Commands"
+	if (pktlen > 12) then
+        if (tvbuf:range(0,1):bitfield(3, 1) == 0) then
+		    commands_tree = tree:add("Commands")
+		    packet_type = "Commands"
+        else
+            commands_tree = tree:add(pf_init_name, tvbuf:range(pos, pktlen_remaining))
+            -- prevent commands loop from running
+            pktlen_remaining = 0
+        end
 	  
-		local pktlen_remaining = pktlen - pos
+
 	
 	while (pktlen_remaining > 0) do
 		cmd_name = tvbuf:range(pos + 4, 4):string()
@@ -1181,7 +1191,8 @@ function atem_proto.dissector(tvbuf,pktinfo,root)
 			cmd_tree:add(pf_fields["pf_cmd__ver_major"], tvbuf:range(pos+8, 2))
 			cmd_tree:add(pf_fields["pf_cmd__ver_minor"], tvbuf:range(pos+10, 2))
 		elseif (cmd_name == "_pin") then
-			cmd_tree:add(pf_fields["pf_cmd__pin_name0"], tvbuf:range(pos+8, 44))
+			cmd_tree:add(pf_fields["pf_cmd__pin_name"], tvbuf:range(pos+8, 28))
+            cmd_tree:add(pf_fields["pf_field_unknown1"], tvbuf:range(pos+36, 16))
 		elseif (cmd_name == "Warn") then
 			cmd_tree:add(pf_fields["pf_cmd_warn_text"], tvbuf:range(pos+8, 44))
 		elseif (cmd_name == "_top") then
@@ -1262,7 +1273,8 @@ function atem_proto.dissector(tvbuf,pktinfo,root)
 			cmd_tree:add(pf_fields["pf_field_unknown2"], tvbuf:range(pos+9, 3))
 		elseif (cmd_name == "InPr") then
 			cmd_tree:add(pf_fields["pf_field_videosource"], tvbuf:range(pos+8, 2))
-			cmd_tree:add(pf_fields["pf_field_longname"], tvbuf:range(pos+10, 20))
+            cmd_tree:add(pf_fields["pf_field_longname"], tvbuf:range(pos+10, 12))
+            cmd_tree:add(pf_fields["pf_field_unknown1"], tvbuf:range(pos+22, 8))
 			cmd_tree:add(pf_fields["pf_field_shortname"], tvbuf:range(pos+30, 4))
 			cmd_tree:add(pf_fields["pf_field_unknown1"], tvbuf:range(pos+34, 1))
 			local cmd_inpr_availableexternalporttypes_tree = cmd_tree:add(pf_fields["pf_cmd_inpr_availableexternalporttypes"], tvbuf:range(pos+35, 1))
