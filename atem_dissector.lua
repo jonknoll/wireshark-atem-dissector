@@ -84,6 +84,7 @@ local pf_flag_ack            = ProtoField.new ("ACK", "atem.flags.ack", ftypes.B
 
 local pf_fields = {}
 local VALS = {}
+pf_fields["pf_field_unknown_bytes"] = ProtoField.new  ("Unknown Bytes", "atem.field.unknown_bytes", ftypes.BYTES, nil, base.SPACE)
 pf_fields["pf_cmd__ver_major"]  = ProtoField.new  ("Major", "atem.cmd._ver.major", ftypes.UINT16, nil, base.DEC)
 pf_fields["pf_cmd__ver_minor"]  = ProtoField.new  ("Minor", "atem.cmd._ver.minor", ftypes.UINT16, nil, base.DEC)
 pf_fields["pf_cmd__pin_name"]  = ProtoField.new  ("Name", "atem.cmd._pin.name", ftypes.STRING, nil, base.NONE)
@@ -938,10 +939,11 @@ cmd_labels["FTDE"] = "Data Transfer Error"
 -- this actually registers the ProtoFields above, into our new Protocol
 -- in a real script I wouldn't do it this way; I'd build a table of fields programmatically
 -- and then set atem_proto.fields to it, so as to avoid forgetting a field
-atem_proto.fields = { 
+atem_proto.fields = {
   pf_packet_length, pf_flags, pf_session_id, pf_packet_id, pf_client_pkt_id,  pf_ack_pkt_id, pf_unknown1,
   pf_flag_ack_req, pf_flag_init, pf_flag_retransmission, pf_flag_retransmit_req, pf_flag_ack,
   pf_cmd_length, pf_cmd_unknown, pf_cmd_name, pf_init_name,
+  pf_fields["pf_field_unknown_bytes"],
   pf_fields["pf_cmd__ver_major"],pf_fields["pf_cmd__ver_minor"],
   pf_fields["pf_cmd__pin_name"],
   pf_fields["pf_cmd_warn_text"],
@@ -1025,6 +1027,7 @@ atem_proto.fields = {
 -- referencing fields we're creating, and they're not "created" until that line above.
 -- Furthermore, you cannot put these 'Field.new()' lines inside the dissector function.
 -- Before Wireshark version 1.11, you couldn't even do this concept (of using fields you just created).
+--[[
 local packet_length_field   = Field.new("atem.packet_length")
 local session_id_field      = Field.new("atem.session_id")
 local packet_id_field       = Field.new("atem.packet_id")
@@ -1034,7 +1037,7 @@ local unkown1_field         = Field.new("atem.unknown1")
 
 local cmd_length_field      = Field.new("atem.cmd.length")
 local cmd_name_field        = Field.new("atem.cmd.name")
-
+--]]
 local ef_too_short       = ProtoExpert.new("atem.too_short.expert", "ATEM message too short", expert.group.MALFORMED, expert.severity.ERROR)
 local ef_length_mismatch = ProtoExpert.new("atem.length_mismatch.expert", "ATEM message length mismatch with header", expert.group.MALFORMED, expert.severity.ERROR)
 
@@ -1191,8 +1194,8 @@ function atem_proto.dissector(tvbuf,pktinfo,root)
 			cmd_tree:add(pf_fields["pf_cmd__ver_major"], tvbuf:range(pos+8, 2))
 			cmd_tree:add(pf_fields["pf_cmd__ver_minor"], tvbuf:range(pos+10, 2))
 		elseif (cmd_name == "_pin") then
-			cmd_tree:add(pf_fields["pf_cmd__pin_name"], tvbuf:range(pos+8, 28))
-            cmd_tree:add(pf_fields["pf_field_unknown1"], tvbuf:range(pos+36, 16))
+			cmd_tree:add(pf_fields["pf_cmd__pin_name"], tvbuf:range(pos+8, 26))
+            cmd_tree:add(pf_fields["pf_field_unknown_bytes"], tvbuf:range(pos+34, cmd_length-34))
 		elseif (cmd_name == "Warn") then
 			cmd_tree:add(pf_fields["pf_cmd_warn_text"], tvbuf:range(pos+8, 44))
 		elseif (cmd_name == "_top") then
@@ -1206,8 +1209,7 @@ function atem_proto.dissector(tvbuf,pktinfo,root)
 			cmd_tree:add(pf_fields["pf_cmd__top_supersources"], tvbuf:range(pos+15, 1))
 			cmd_tree:add(pf_fields["pf_field_unknown0"], tvbuf:range(pos+16, 1))
 			cmd_tree:add(pf_fields["pf_cmd__top_hassdoutput"], tvbuf:range(pos+17, 1))
-			cmd_tree:add(pf_fields["pf_field_unknown0"], tvbuf:range(pos+18, 1))
-			cmd_tree:add(pf_fields["pf_field_unknown1"], tvbuf:range(pos+19, 1))
+			cmd_tree:add(pf_fields["pf_field_unknown_bytes"], tvbuf:range(pos+18, cmd_length-18))
 		elseif (cmd_name == "_MeC") then
 			cmd_tree:add(pf_fields["pf_field_me"], tvbuf:range(pos+8, 1))
 			cmd_tree:add(pf_fields["pf_cmd__mec_keyersonme"], tvbuf:range(pos+9, 1))
@@ -2229,7 +2231,7 @@ function atem_proto.dissector(tvbuf,pktinfo,root)
 			cmd_tree:add(pf_fields["pf_field_isused"], tvbuf:range(pos+12, 1))
 			cmd_tree:add(pf_fields["pf_cmd_mpfe_hash"], tvbuf:range(pos+13, 16))
 			cmd_tree:add(pf_fields["pf_field_unknown1"], tvbuf:range(pos+29, 1))
-			cmd_tree:add(pf_fields["pf_cmd_mpfe_filenamestringlength"], tvbuf:range(pos+31, 1)) 
+			cmd_tree:add(pf_fields["pf_cmd_mpfe_filenamestringlength"], tvbuf:range(pos+31, 1))
 			if (tvbuf:range(pos+31, 1):uint() > 0) then
 				cmd_tree:add(pf_fields["pf_field_filename"], tvbuf:range(pos+32, tvbuf:range(pos+31, 1):uint()))
 			end
@@ -2506,6 +2508,7 @@ function atem_proto.dissector(tvbuf,pktinfo,root)
 		elseif (cmd_name == "InCm") then
 			cmd_tree:add(pf_fields["pf_cmd_incm_state1"], tvbuf:range(pos+8, 1))
 			cmd_tree:add(pf_fields["pf_cmd_incm_state2"], tvbuf:range(pos+9, 1))
+            cmd_tree:add(pf_fields["pf_field_unknown_bytes"], tvbuf:range(pos+10, cmd_length-10))
 		elseif (cmd_name == "FTSD") then
 			cmd_tree:add(pf_fields["pf_cmd_ftsd_id"], tvbuf:range(pos+8, 2))
 			cmd_tree:add(pf_fields["pf_cmd_ftsd_storeId"], tvbuf:range(pos+10, 2))
