@@ -71,6 +71,7 @@ local pf_cmd_length     = ProtoField.new   ("Command length", "atem.cmd.length",
 local pf_cmd_unknown    = ProtoField.new   ("Unknown", "atem.cmd.unknown", ftypes.UINT16, nil, base.HEX)
 local pf_cmd_name       = ProtoField.new   ("Command name", "atem.cmd.name", ftypes.STRING)
 local pf_init_name      = ProtoField.new   ("Init", "atem.init", ftypes.BYTES)
+local pf_commands_name  = ProtoField.new   ("Commands", "atem.cmd", ftypes.NONE)
 
 -- within the flags field, we want to parse/show the bits separately
 -- note the "base" argument becomes the size of the bitmask'ed field when ftypes.BOOLEAN is used
@@ -942,7 +943,7 @@ cmd_labels["FTDE"] = "Data Transfer Error"
 atem_proto.fields = {
   pf_packet_length, pf_flags, pf_session_id, pf_packet_id, pf_client_pkt_id,  pf_ack_pkt_id, pf_unknown1,
   pf_flag_ack_req, pf_flag_init, pf_flag_retransmission, pf_flag_retransmit_req, pf_flag_ack,
-  pf_cmd_length, pf_cmd_unknown, pf_cmd_name, pf_init_name,
+  pf_cmd_length, pf_cmd_unknown, pf_cmd_name, pf_init_name, pf_commands_name,
   pf_fields["pf_field_unknown_bytes"],
   pf_fields["pf_cmd__ver_major"],pf_fields["pf_cmd__ver_minor"],
   pf_fields["pf_cmd__pin_name"],
@@ -1102,8 +1103,6 @@ function atem_proto.dissector(tvbuf,pktinfo,root)
 
 	-- set the protocol column to show our protocol name
 	pktinfo.cols.protocol:set("ATEM")
-	
-	local packet_type = "Unknown"
 
 	-- We want to check that the packet size is rational during dissection, so let's get the length of the
 	-- packet buffer (Tvb).
@@ -1165,14 +1164,14 @@ function atem_proto.dissector(tvbuf,pktinfo,root)
 	
 	if (pktlen > 12) then
         if (tvbuf:range(0,1):bitfield(3, 1) == 0) then
-		    commands_tree = tree:add("Commands")
-		    packet_type = "Commands"
+		    commands_tree = tree:add(pf_commands_name, tvbuf:range(pos, pktlen_remaining))
         else
             commands_tree = tree:add(pf_init_name, tvbuf:range(pos, pktlen_remaining))
             -- prevent commands loop from running
             pktlen_remaining = 0
         end
-	  
+    end
+
 
 	
 	while (pktlen_remaining > 0) do
@@ -2540,27 +2539,31 @@ function atem_proto.dissector(tvbuf,pktinfo,root)
 		end
 		
 		pos = pos + cmd_length
-		pktlen_remaining = pktlen_remaining - cmd_length        
-		
+		pktlen_remaining = pktlen_remaining - cmd_length
+
 		cmd_count = cmd_count + 1
 	end
-		if cmd_count == 1 then
-			packet_type = "Command"
-			pktinfo.cols.info:set("(".. packet_type .." ".. cmd_name ..", Len ".. packet_length ..")")
-		else
-			pktinfo.cols.info:set("(".. cmd_count .." ".. packet_type ..", Len ".. packet_length ..")")
-		end
-	else 
-	  if tvbuf:range(0,1):bitfield(0, 1) == 1 then
-		packet_type = "ACK"
-	  else
-		if tvbuf:range(0,1):bitfield(3, 1) == 1 then
-		  packet_type = "Init"
+	
+    -- figure out what to show in the info column
+    local packet_type
+    if cmd_count == 1 then
+		packet_type = "Command"
+		pktinfo.cols.info:set("(".. packet_type .." ".. cmd_name ..", Len ".. packet_length ..")")
+	elseif cmd_count > 1 then
+        packet_type = "Commands"
+		pktinfo.cols.info:set("(".. cmd_count .." ".. packet_type ..", Len ".. packet_length ..")")
 	else
-	  packet_type = "Ping"
-	end
-	  end
-	  pktinfo.cols.info:set("(".. packet_type ..", Len ".. packet_length ..")")
+        -- no commands, base on packet bits
+        if tvbuf:range(0,2):bitfield(0, 5) == 0x11 then
+            packet_type = "Ping"
+        elseif tvbuf:range(0,1):bitfield(0, 1) == 1 then
+		    packet_type = "ACK"
+        elseif tvbuf:range(0,1):bitfield(3, 1) == 1 then
+		    packet_type = "Init"
+        else
+            packet_type = "Unknown"
+	    end
+	    pktinfo.cols.info:set("(".. packet_type ..", Len ".. packet_length ..")")
 	end
 
 	dprint2("atem.dissector returning",pos)
