@@ -85,6 +85,12 @@ local pf_flag_ack            = ProtoField.new ("ACK", "atem.flags.ack", ftypes.B
 
 local pf_fields = {}
 local VALS = {}
+
+
+VALS["INIT_TYPES"] = {[1] = "New Connection", [2] = "Response", [4] = "Disconnect", [5] = "Disconnect ACK"}
+pf_fields["pf_init_type"]   = ProtoField.new  ("Init Type", "atem.init.type", ftypes.UINT8, VALS["INIT_TYPES"], base.HEX)
+pf_fields["pf_client_id"]   = ProtoField.new  ("Client ID", "atem.client_id", ftypes.UINT16, nil, base.HEX)
+
 pf_fields["pf_field_unknown_bytes"] = ProtoField.new  ("Unknown Bytes", "atem.field.unknown_bytes", ftypes.BYTES, nil, base.SPACE)
 pf_fields["pf_cmd__ver_major"]  = ProtoField.new  ("Major", "atem.cmd._ver.major", ftypes.UINT16, nil, base.DEC)
 pf_fields["pf_cmd__ver_minor"]  = ProtoField.new  ("Minor", "atem.cmd._ver.minor", ftypes.UINT16, nil, base.DEC)
@@ -944,6 +950,7 @@ atem_proto.fields = {
   pf_packet_length, pf_flags, pf_session_id, pf_packet_id, pf_client_pkt_id,  pf_ack_pkt_id, pf_unknown1,
   pf_flag_ack_req, pf_flag_init, pf_flag_retransmission, pf_flag_retransmit_req, pf_flag_ack,
   pf_cmd_length, pf_cmd_unknown, pf_cmd_name, pf_init_name, pf_commands_name,
+  pf_fields["pf_init_type"], pf_fields["pf_client_id"],
   pf_fields["pf_field_unknown_bytes"],
   pf_fields["pf_cmd__ver_major"],pf_fields["pf_cmd__ver_minor"],
   pf_fields["pf_cmd__pin_name"],
@@ -1167,6 +1174,11 @@ function atem_proto.dissector(tvbuf,pktinfo,root)
 		    commands_tree = tree:add(pf_commands_name, tvbuf:range(pos, pktlen_remaining))
         else
             commands_tree = tree:add(pf_init_name, tvbuf:range(pos, pktlen_remaining))
+            commands_tree:add(pf_fields["pf_init_type"], tvbuf:range(pos, 1))
+            if (tvbuf:range(pos, 1):uint() == 0x02) then
+                -- client ID is used to make the session ID
+                commands_tree:add(pf_fields["pf_client_id"], tvbuf:range(pos + 2, 2))
+            end
             -- prevent commands loop from running
             pktlen_remaining = 0
         end
