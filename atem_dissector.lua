@@ -754,6 +754,9 @@ pf_fields["pf_cmd_ramp_inputsource1"]   = ProtoField.new  ("Input Source", "atem
 VALS["VALS_RAMP_MASTER"] = {[0] = "No", [1] = "Yes"}
 pf_fields["pf_cmd_ramp_master"] = ProtoField.new  ("Master", "atem.cmd.ramp.master", ftypes.UINT8, VALS["VALS_RAMP_MASTER"], base.DEC)
 
+VALS["VALS_TALLY_PREV_PROG"] = {[0]="Off      ",[1]="Prog     ",[2]="Prev     ",[3]="Prev+Prog"}
+pf_fields["pf_cmd_field_sources"] = ProtoField.new ("Source", "atem.cmd.field.sources", ftypes.UINT8, VALS["VALS_TALLY_PREV_PROG"], base.HEX, nil)
+
 pf_fields["pf_cmd_time_hour"]   = ProtoField.new  ("Hour", "atem.cmd.time.hour", ftypes.UINT8, nil, base.DEC)
 pf_fields["pf_cmd_time_minute"] = ProtoField.new  ("Minute", "atem.cmd.time.minute", ftypes.UINT8, nil, base.DEC)
 pf_fields["pf_cmd_time_second"] = ProtoField.new  ("Second", "atem.cmd.time.second", ftypes.UINT8, nil, base.DEC)
@@ -800,86 +803,6 @@ pf_fields["pf_cmd_ftdc_id"]         = ProtoField.new  ("Transfer ID", "atem.cmd.
 pf_fields["pf_cmd_ftfd_id"]         = ProtoField.new  ("Transfer ID", "atem.cmd.ftfd.id", ftypes.UINT16, nil, base.DEC)
 pf_fields["pf_cmd_ftfd_filename"]   = ProtoField.new  ("Filename", "atem.cmd.ftfd.filename", ftypes.STRING, nil, base.NONE)
 pf_fields["pf_cmd_ftfd_hash"]       = ProtoField.new  ("File hash (MD5)", "atem.cmd.ftfd.hash", ftypes.BYTES)
-
-
-local video_sources = {
-    [0] = "Black",
-    [1] = "Input 1",
-    [2] = "Input 2",
-    [3] = "Input 3",
-    [4] = "Input 4",
-    [5] = "Input 5",
-    [6] = "Input 6",
-    [7] = "Input 7",
-    [8] = "Input 8",
-    [9] = "Input 9",
-    [10] = "Input 10",
-    [11] = "Input 11",
-    [12] = "Input 12",
-    [13] = "Input 13",
-    [14] = "Input 14",
-    [15] = "Input 15",
-    [16] = "Input 16",
-    [17] = "Input 17",
-    [18] = "Input 18",
-    [19] = "Input 19",
-    [20] = "Input 20",
-    [1000] = "Color Bars",
-    [2001] = "Color 1",
-    [2002] = "Color 2",
-    [3010] = "Media Player 1",
-    [3011] = "Media Player 1 Key",
-    [3020] = "Media Player 2",
-    [3021] = "Media Player 2 Key",
-    [4010] = "Key 1 Mask",
-    [4020] = "Key 2 Mask",
-    [4030] = "Key 3 Mask",
-    [4040] = "Key 4 Mask",
-    [5010] = "DSK 1 Mask",
-    [5020] = "DSK 2 Mask",
-    [6000] = "Super Source",
-    [7001] = "Clean Feed 1",
-    [7002] = "Clean Feed 2",
-    [8001] = "Auxilary 1",
-    [8002] = "Auxilary 2",
-    [8003] = "Auxilary 3",
-    [8004] = "Auxilary 4",
-    [8005] = "Auxilary 5",
-    [8006] = "Auxilary 6",
-    [10010] = "ME 1 Prog",
-    [10011] = "ME 1 Prev",
-    [10020] = "ME 2 Prog",
-    [10021] = "ME 2 Prev",
-}
-
-local audio_sources = {
-    [1] = "Input 1",
-    [2] = "Input 2",
-    [3] = "Input 3",
-    [4] = "Input 4",
-    [5] = "Input 5",
-    [6] = "Input 6",
-    [7] = "Input 7",
-    [8] = "Input 8",
-    [9] = "Input 9",
-    [10] = "Input 10",
-    [11] = "Input 11",
-    [12] = "Input 12",
-    [13] = "Input 13",
-    [14] = "Input 14",
-    [15] = "Input 15",
-    [16] = "Input 16",
-    [17] = "Input 17",
-    [18] = "Input 18",
-    [19] = "Input 19",
-    [20] = "Input 20",
-    [1001] = "XLR",
-    [1101] = "AES/EBU",
-    [1201] = "RCA",
-    [2001] = "MP1",
-    [2002] = "MP2",
-}
-
 
 
 local cmd_labels = {}
@@ -1042,6 +965,7 @@ atem_proto.fields = {
   pf_fields["pf_cmd__ssc_boxes"],pf_fields["pf_field_unknown3"],
   pf_fields["pf_cmd__tlc_tallychannels"],
   pf_fields["pf_cmd__amc_audiochannels"],pf_fields["pf_cmd__amc_hasmonitor"],
+  pf_fields["pf_cmd_field_sources"],
   pf_fields["pf_cmd__vmc_modes"],pf_fields["pf_flag_cmd__vmc_modes_525i5994ntsc"],pf_fields["pf_flag_cmd__vmc_modes_625i50pal"],pf_fields["pf_flag_cmd__vmc_modes_525i5994ntsc169"],pf_fields["pf_flag_cmd__vmc_modes_625i50pal169"],pf_fields["pf_flag_cmd__vmc_modes_720p50"],pf_fields["pf_flag_cmd__vmc_modes_720p5994"],pf_fields["pf_flag_cmd__vmc_modes_1080i50"],pf_fields["pf_flag_cmd__vmc_modes_1080i5994"],pf_fields["pf_flag_cmd__vmc_modes_1080p2398"],pf_fields["pf_flag_cmd__vmc_modes_1080p24"],pf_fields["pf_flag_cmd__vmc_modes_1080p25"],pf_fields["pf_flag_cmd__vmc_modes_1080p2997"],pf_fields["pf_flag_cmd__vmc_modes_1080p50"],pf_fields["pf_flag_cmd__vmc_modes_1080p5994"],pf_fields["pf_flag_cmd__vmc_modes_2160p2398"],pf_fields["pf_flag_cmd__vmc_modes_2160p24"],pf_fields["pf_flag_cmd__vmc_modes_2160p25"],pf_fields["pf_flag_cmd__vmc_modes_2160p2997"],
   pf_fields["pf_cmd__mac_banks"],
   pf_fields["pf_cmd_powr_status"],pf_fields["pf_flag_cmd_powr_status_mainpower"],pf_fields["pf_flag_cmd_powr_status_backuppower"],pf_fields["pf_field_mode"],pf_fields["pf_field_format"],pf_fields["pf_field_videosource"],pf_fields["pf_field_longname"],pf_fields["pf_field_shortname"],
@@ -1126,6 +1050,9 @@ local unkown1_field         = Field.new("atem.unknown1")
 local cmd_length_field      = Field.new("atem.cmd.length")
 local cmd_name_field        = Field.new("atem.cmd.name")
 --]]
+local cmd_sources_field     = Field.new("atem.cmd.field.sources")
+
+
 local ef_too_short       = ProtoExpert.new("atem.too_short.expert", "ATEM message too short", expert.group.MALFORMED, expert.severity.ERROR)
 local ef_length_mismatch = ProtoExpert.new("atem.length_mismatch.expert", "ATEM message length mismatch with header", expert.group.MALFORMED, expert.severity.ERROR)
 
@@ -2576,8 +2503,26 @@ function atem_proto.dissector(tvbuf,pktinfo,root)
 			cmd_tree:add(pf_fields["pf_field_sources1"], tvbuf:range(pos+8, 2))
 		elseif (cmd_name == "TlIn") then
 			cmd_tree:add(pf_fields["pf_field_sources1"], tvbuf:range(pos+8, 2))
+            -- dynamically create a list of sources based on the number of sources field
+            local num_sources = tvbuf:range(pos+8, 2):uint()
+            local i
+            for i=0, num_sources-1, 1
+            do
+                cmd_tree:add(pf_fields["pf_cmd_field_sources"], tvbuf:range(pos+10 + i, 1), tvbuf:range(pos+10 + i, 1):uint(), cmd_sources_field(), "Index", i)
+            end
+            cmd_tree:add(pf_fields["pf_field_unknown_bytes"], tvbuf:range(pos+(10+num_sources), cmd_length-(10+num_sources)))
 		elseif (cmd_name == "TlSr") then
 			cmd_tree:add(pf_fields["pf_field_sources1"], tvbuf:range(pos+8, 2))
+            -- dynamically create a list of sources based on the number of sources field
+            local num_sources = tvbuf:range(pos+8, 2):uint()
+            local i
+            for i=0, num_sources-1, 1
+            do
+                local source_id = tvbuf:range(pos+10 + (i*3), 2):uint()
+                local source_val = tvbuf:range(pos+10 + (i*3) + 2, 1):uint()
+                cmd_tree:add(pf_fields["pf_cmd_field_sources"], tvbuf:range(pos+10 + (i*3), 3), source_val, cmd_sources_field(), VALS["VALS_VIDEOSOURCE"][source_id], "("..source_id..")")
+            end
+            cmd_tree:add(pf_fields["pf_field_unknown_bytes"], tvbuf:range(pos+(10+(num_sources * 3)), cmd_length-(10+(num_sources * 3))))
 		elseif (cmd_name == "Time") then
 			cmd_tree:add(pf_fields["pf_cmd_time_hour"], tvbuf:range(pos+8, 1))
 			cmd_tree:add(pf_fields["pf_cmd_time_minute"], tvbuf:range(pos+9, 1))
